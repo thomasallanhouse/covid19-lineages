@@ -185,7 +185,7 @@ def GPFitting(occurences, df_counts):
     '''
     
     nboot = 200 # Number of bootstrap samples
-    ncmax = 10000 # Point at which we switch between GPC and GPR
+    ncmax = 15000 # Point at which we switch between GPC and GPR
     
     Pi_store = pd.DataFrame()
     Pi_boot = {}
@@ -228,12 +228,12 @@ def GPFitting(occurences, df_counts):
                 try:
                     gpc_boot.fit(X_boot, y_boot)
                     pb[j,:] = gpc_boot.predict_proba(X1.reshape(-1, 1))[:, 1]
-                    rb[j,:] = np.diff(np.log(Pi/(1.-Pi)))
+                    rb[j,:] = np.diff(np.log(pb[j,:]/(1.-pb[j,:])))
                 except:
                     print(f'Failed on bootstrap {j:.0f}')
                     j -= 1
         else:
-            print('Too large for GPC. Running Gaussian Process Regression.')
+            print('Too large for GPC (' + str(m) + ' samples). Running Gaussian Process Regression.')
             yy1 = df.eval(f'All - `{lineage}`')
             yy2 = df[lineage]
             X0 = np.atleast_2d(X0).T
