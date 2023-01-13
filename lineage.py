@@ -64,7 +64,6 @@ def LineageCounts(df_data, dict_lineages, t_ranges):
         Z.fillna(0, inplace=True)        
 
         df_counts = df_counts.join(Z, how='outer')
-#     raise Exception 
         
     return df_counts
 
