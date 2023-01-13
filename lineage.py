@@ -29,29 +29,30 @@ def LineageCounts(df_data, dict_lineages, t_ranges):
        aliases as columns
     '''
     
+    day_column, lineage_column = df_data.columns
     df_counts = (df_data
-                 .groupby('Day')
+                 .groupby(day_column)
                  .count()
                 )
-    columns_name = {'paper_lineage':'All'}
+    columns_name = {lineage_column:'All'}
     df_counts.rename(columns=columns_name, 
                      inplace=True)
 
     for i, (key, value) in enumerate(dict_lineages.items()):
-        mask = (df_data
-                .paper_lineage
+        mask = (df_data[lineage_column]
                 .isin(value)
                )
         df_grouped = (df_data[mask]
-                      .groupby('Day')
+                      .groupby(day_column)
                      )
 
         Z = df_grouped.count()
         t0, t1 = t_ranges[key]
         Z = Z.loc[t0:t1, :]
-        columns_name = {'paper_lineage':key}
+        columns_name = {lineage_column:key}
         Z.rename(columns=columns_name,
                 inplace=True)
+        
         query = f'`{key}`.notna()'
         indices = (Z
                    .query(query, engine='python')
@@ -63,6 +64,7 @@ def LineageCounts(df_data, dict_lineages, t_ranges):
         Z.fillna(0, inplace=True)        
 
         df_counts = df_counts.join(Z, how='outer')
+#     raise Exception 
         
     return df_counts
 
@@ -126,21 +128,21 @@ def LineageOccurences(df_data, dict_lineages):
        or not respectively
     '''
     
+    day_column, lineage_column = df_data.columns
     occurences = {}
     
     for lineage in dict_lineages.keys():
         
         lineage_list = dict_lineages[lineage]
-        query = 'paper_lineage in @lineage_list'
+        query0 = f'{lineage_column} in @lineage_list'
         x_min, x_max = (df_data
-                        .query(query)
-                        .Day
+                        .query(query0)[day_column]
                         .agg([min, max])
                         .T
                        )
-        query = '@x_min <= Day <= @x_max'
-        df_lineage = df_data.query(query)
-        eval_ = f'paper_lineage = {query}'
+        query1 = f'@x_min <= {day_column} <= @x_max'
+        df_lineage = df_data.query(query1)
+        eval_ = f'{lineage_column} = {query0}'
         df_lineage.eval(eval_, inplace=True)
         df_lineage.reset_index(drop=True, inplace=True)
         occurences[lineage] = df_lineage
