@@ -268,7 +268,7 @@ def GPFitting(occurences, df_counts):
                     print(f'Failed on bootstrap {j:.0f}')
                     j -= 1
         else:
-            print('Too large for GPC (' + str(m) + ' samples). Running Gaussian Process Regression.')
+            print(f'Too large for GPC ({m:.0f} samples). Running Gaussian Process Regression.')
             yy1 = df.eval(f'All - `{lineage}`')
             yy2 = df[lineage]
             X0 = np.atleast_2d(X0).T
@@ -370,4 +370,19 @@ def GPFitting(occurences, df_counts):
             'r_store':r_store, 
             'r_boot':r_boot
            }
+           
+def StringToDate(s):
+    if s.startswith('202'):
+        s = pd.to_datetime(s)
+    else:
+        s = np.nan
+    return s
 
+def TimeDelta(date):
+
+    day1 = '26/04/2020'
+    day1 = pd.to_datetime(day1, 
+                          infer_datetime_format=True)
+    delta_days = date - day1
+    
+    return delta_days.days
