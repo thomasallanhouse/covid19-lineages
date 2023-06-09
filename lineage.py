@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import *
+from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 from tqdm.notebook import tqdm
 import scipy.optimize as op
 
@@ -183,7 +183,7 @@ def GPRPreprocess(y):
     
     return np.atleast_2d(np.log(y+1)).T
 
-def GPFitting(occurences, df_counts):
+def GPFitting(occurences, df_counts, classify, nboot=200):
     '''
     Function to produce fitting by either ocurrences 
     or counts of lineage alias.
@@ -197,6 +197,10 @@ def GPFitting(occurences, df_counts):
        Probability of occurences of the given lineage 
        aliases, with the day number as indices and the 
        lineages aliases as columns
+    classify: array
+       Boolean values for whether to use classification for each lineage
+    nboot: integer
+       Number of bootstrap samples to take
        
     Return : dict
        Collection of fitting data with the following keys and values:
@@ -206,15 +210,12 @@ def GPFitting(occurences, df_counts):
        'r_boot': The bootstrapping of the growing rate.
     '''
     
-    nboot = 200 # Number of bootstrap samples
-    ncmax = 15000 # Point at which we switch between GPC and GPR
-    
     Pi_store = pd.DataFrame()
     Pi_boot = {}
     r_store = pd.DataFrame()
     r_boot = {}
 
-    for i, lineage in enumerate(occurences.keys()):
+    for i, lineage in enumerate(df_counts.columns[1:]):
         X, y = (occurences[lineage]
                 .T
                 .values
@@ -232,11 +233,13 @@ def GPFitting(occurences, df_counts):
         X0min, X0max = X0[[0,-1]]
         X1 = np.atleast_2d(np.arange(X0min, X0max+1)).T
 
-        if (m < ncmax):
+        if classify[i]:
             print('Running Gaussian process classification.')
             kernel = 1.0 * RBF(1.0)
             gpc = GaussianProcessClassifier(kernel=kernel, 
-                                            copy_X_train=False)
+                                            copy_X_train=False,
+                                            n_jobs=-2,
+                                            )
             gpc.fit(X, y)
             Pi = gpc.predict_proba(X1.reshape(-1, 1))[:, 1]
             dr = np.diff(np.log(Pi/(1.-Pi)))
@@ -252,7 +255,8 @@ def GPFitting(occurences, df_counts):
                 kernel = gpc.kernel_
                 gpc_boot = GaussianProcessClassifier(kernel=kernel, 
                                                      optimizer=None, 
-                                                     copy_X_train=False
+                                                     copy_X_train=False,
+                                                     n_jobs=-2,
                                                     )
                 try:
                     gpc_boot.fit(X_boot, y_boot)
@@ -268,7 +272,7 @@ def GPFitting(occurences, df_counts):
                     print(f'Failed on bootstrap {j:.0f}')
                     j -= 1
         else:
-            print(f'Too large for GPC ({m:.0f} samples). Running Gaussian Process Regression.')
+            print('Running Gaussian Process Regression.')
             yy1 = df.eval(f'All - `{lineage}`')
             yy2 = df[lineage]
             X0 = np.atleast_2d(X0).T
